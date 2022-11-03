@@ -16,12 +16,25 @@ _API_URL_ = 'https://symbol-search.tradingview.com/symbol_search'
 _WS_URL_ = "wss://data.tradingview.com/socket.io/websocket"
 
 class TradingViewWs():
-    def __init__(self, ticker, market):
+    def __init__(self, ticker, market, username = None, password = None):
         self.ticker = ticker.upper()
         self.market = market
         self._ws_url = _WS_URL_
         self._api_url = _API_URL_
+        self.username = username
+        self.password = password
         self.datas = []
+
+    def get_auth_token(self):
+        sign_in_url = 'https://www.tradingview.com/accounts/signin/'
+
+        data = {"username": self.username, "password": self.password, "remember": "on"}
+        headers = {
+            'Referer': 'https://www.tradingview.com'
+        }
+        response = requests.post(url=sign_in_url, data=data, headers=headers)
+        auth_token = response.json()['user']['auth_token']
+        return auth_token
 
     def search(self, query, type):
         # type = 'stock' | 'futures' | 'forex' | 'cfd' | 'crypto' | 'index' | 'economic'
@@ -67,7 +80,6 @@ class TradingViewWs():
             try:
                 result = ws.recv()
 
-
                 if "quote_completed" in result or "session_id" in result:
                     continue
 
@@ -75,8 +87,6 @@ class TradingViewWs():
 
                 if len(res) != 0:
                     jsonres = json.loads(res[0])
-
-                    print("=======jsonres", jsonres)
 
                     if jsonres["m"] == "qsd":
                         symbol = jsonres["p"][1]["n"]
@@ -101,16 +111,19 @@ class TradingViewWs():
                 out = re.search('"s":\[(.+?)\}\]', result).group(1)
                 items = out.split(',{\"')
 
-                for item in items:
-                    item = re.split('\[|:|,|\]', item)
-                    ind = int(item[1])
-                    ts = datetime.fromtimestamp(float(item[4])).strftime("%Y-%m-%d, %H:%M:%S")
-                    s = {"datetime": ts, "open": float(item[5]), "high": float(item[6]), "low": float(item[7]), "close": float(item[8]), "volume": float(item[9])}
-                    self.datas.append(s)
+                if len(items) != 0:
+                    for item in items:
+                        item = re.split('\[|:|,|\]', item)
+                        ind = int(item[1])
+                        ts = datetime.fromtimestamp(float(item[4])).strftime("%Y-%m-%d, %H:%M:%S")
+                        s = {"datetime": ts, "open": float(item[5]), "high": float(item[6]), "low": float(item[7]), "close": float(item[8]), "volume": float(item[9])}
+                        self.datas.append(s)
 
-
-                callback(self.datas)
-
+                    callback(self.datas)
+                else:
+                    # ping packet
+                    print("................retry")
+                    self.send_ping_packet(ws, result)
             except KeyboardInterrupt:
                 break
             except:
@@ -125,7 +138,6 @@ class TradingViewWs():
 
         broker = data["exchange"]
         symbol_id = f"{broker.upper()}:{symbol_name.upper()}"
-        print(symbol_id, end="\n\n")
         return symbol_id
 
     def realtime_quote(self, callback):
@@ -156,7 +168,12 @@ class TradingViewWs():
         chart_session = self.generate_session("cs_")
 
         # Then send a message through the tunnel
-        self.send_message(ws, "set_auth_token", ["unauthorized_user_token"])
+        if self.username and self.password:
+            auth_token = self.get_auth_token()
+            self.send_message(ws, "set_auth_token", [auth_token])
+        else:
+            self.send_message(ws, "set_auth_token", ["unauthorized_user_token"])
+
         self.send_message(ws, "chart_create_session", [chart_session, ""])
         self.send_message(ws, "quote_create_session", [session])
         self.send_message(ws, "switch_timezone", [chart_session, "Etc/UTC"])

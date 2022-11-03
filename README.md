@@ -13,7 +13,7 @@ virtualenv ./virtualenv --python=$(which python3)
 # Install Python requirements
 pip install -r requirements.txt
 
-# Install cointrol-*
+# Install
 pip install -e .
 
 # run test

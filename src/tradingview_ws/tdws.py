@@ -52,7 +52,7 @@ class TradingViewWs():
             ping_str = ping_str[0]
             ws.send("~m~" + str(len(ping_str)) + "~m~" + ping_str)
 
-    def socket_job(self, ws):
+    def socket_job(self, ws, callback):
         while True:
             try:
                 result = ws.recv()
@@ -65,12 +65,12 @@ class TradingViewWs():
                     if jsonres["m"] == "qsd":
                         symbol = jsonres["p"][1]["n"]
                         price = jsonres["p"][1]["v"]["lp"]
-                        #to do
-                        print(f"{symbol} -> {price}")
-
+                        callback({"symbol": symbol, "price": price})
                 else:
                     # ping packet
                     self.send_ping_packet(ws, result)
+            except KeyboardInterrupt:
+                break
             except:
                 continue
 
@@ -78,12 +78,15 @@ class TradingViewWs():
         data = self.search(pair, market)
 
         symbol_name = data["symbol"]
+        if data['type'] == 'futures':
+            symbol_name = data["contracts"][0]["symbol"]
+
         broker = data["exchange"]
         symbol_id = f"{broker.upper()}:{symbol_name.upper()}"
         print(symbol_id, end="\n\n")
         return symbol_id
 
-    def realtime(self):
+    def realtime(self, callback):
         # serach btcusdt from crypto category
         symbol_id = self.get_symbol_id(self.ticker, self.market)
 
@@ -98,4 +101,4 @@ class TradingViewWs():
         self.send_message(ws, "quote_add_symbols", [session, symbol_id])
 
         # Start job
-        self.socket_job(ws)
+        self.socket_job(ws, callback)

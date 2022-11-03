@@ -32,7 +32,8 @@ def callbackFunc(s):
 
 ```
 pair = "ES"
-market = "futures"
+
+market = "futures" # 'stock' | 'futures' | 'forex' | 'cfd' | 'crypto' | 'index' | 'economic'
 trading = td.TradingViewWs(pair, market)
 trading.realtime(callbackFunc)
 ```

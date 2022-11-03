@@ -19,3 +19,23 @@ pip install -e .
 
 # run test
 python -m test
+
+# Using:
+
+* define a callback function get receive result
+`
+def callbackFunc(s):
+    print(s)
+`
+
+* call websock to get price
+
+`
+pair = "ES"
+market = "futures"
+trading = td.TradingViewWs(pair, market)
+trading.realtime(callbackFunc)
+`
+
+![Alt text](https://github.com/dearvn/tradingview_ws/raw/main/console.png?raw=true "result")
+

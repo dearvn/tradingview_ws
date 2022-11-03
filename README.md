@@ -1,7 +1,6 @@
 # Information
 This package to fetch data from tradingview websocket
 ## Installation
-```bash
 
 # Create an isolated Python virtual environment
 pip3 install virtualenv
@@ -22,7 +21,7 @@ python -m test
 
 # Using:
 
-* define a callback function get receive result
+** define a callback function get receive result
 `
 def callbackFunc(s):
     print(s)

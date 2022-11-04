@@ -100,15 +100,20 @@ class TradingViewWs():
             except:
                 continue
 
-    def socket_chart(self, ws, callback):
+    def socket_bar_chart(self, ws, callback):
         while True:
             try:
                 result = ws.recv()
 
-                if "quote_completed" in result or "session_id" in result:
+                if not result or "quote_completed" in result or "session_id" in result:
                     continue
 
-                out = re.search('"s":\[(.+?)\}\]', result).group(1)
+                out = re.search('"s":\[(.+?)\}\]', result)
+                if not out:
+                    continue
+
+                out = out.group(1)
+
                 items = out.split(',{\"')
 
                 if len(items) != 0:
@@ -126,8 +131,9 @@ class TradingViewWs():
                     self.send_ping_packet(ws, result)
             except KeyboardInterrupt:
                 break
-            except:
-                continue
+            except Exception as e:
+                print("=========except", datetime.now(), e)
+                self.send_ping_packet(ws, result)
 
     def get_symbol_id(self, pair, market):
         data = self.search(pair, market)
@@ -195,7 +201,7 @@ class TradingViewWs():
         # p1, p2 = filter_raw_message(st)
         self.send_message(ws, "resolve_symbol", [chart_session, "symbol_1",
                                            "={\"symbol\":\""+symbol_id+"\",\"adjustment\":\"splits\",\"session\":\"extended\"}"])
-        self.send_message(ws, "create_series", [chart_session, "s1", "s1", "symbol_1", interval, total_candle])
+        self.send_message(ws, "create_series", [chart_session, "s1", "s1", "symbol_1", str(interval), total_candle])
         # self.send_message(ws, "create_study", [chart_session,"st4","st1","s1","ESD@tv-scripting-101!",{"text":"BNEhyMp2zcJFvntl+CdKjA==_DkJH8pNTUOoUT2BnMT6NHSuLIuKni9D9SDMm1UOm/vLtzAhPVypsvWlzDDenSfeyoFHLhX7G61HDlNHwqt/czTEwncKBDNi1b3fj26V54CkMKtrI21tXW7OQD/OSYxxd6SzPtFwiCVAoPbF2Y1lBIg/YE9nGDkr6jeDdPwF0d2bC+yN8lhBm03WYMOyrr6wFST+P/38BoSeZvMXI1Xfw84rnntV9+MDVxV8L19OE/0K/NBRvYpxgWMGCqH79/sHMrCsF6uOpIIgF8bEVQFGBKDSxbNa0nc+npqK5vPdHwvQuy5XuMnGIqsjR4sIMml2lJGi/XqzfU/L9Wj9xfuNNB2ty5PhxgzWiJU1Z1JTzsDsth2PyP29q8a91MQrmpZ9GwHnJdLjbzUv3vbOm9R4/u9K2lwhcBrqrLsj/VfVWMSBP","pineId":"TV_SPLITS","pineVersion":"8.0"}])
 
         # Start job

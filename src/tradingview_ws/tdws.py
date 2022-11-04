@@ -21,14 +21,17 @@ class TradingViewWs():
         self.market = market
         self._ws_url = _WS_URL_
         self._api_url = _API_URL_
-        self.username = username
-        self.password = password
+        self.token = self.get_auth_token(username, password)
         self.datas = []
 
-    def get_auth_token(self):
+
+    def get_auth_token(self, username, password):
+        if not username or not password:
+            return ''
+
         sign_in_url = 'https://www.tradingview.com/accounts/signin/'
 
-        data = {"username": self.username, "password": self.password, "remember": "on"}
+        data = {"username": username, "password": password, "remember": "on"}
         headers = {
             'Referer': 'https://www.tradingview.com'
         }
@@ -100,7 +103,7 @@ class TradingViewWs():
             except:
                 continue
 
-    def socket_bar_chart(self, ws, callback):
+    def socket_bar_chart(self, ws, interval, callback):
         while True:
             try:
                 result = ws.recv()
@@ -117,23 +120,43 @@ class TradingViewWs():
                 items = out.split(',{\"')
 
                 if len(items) != 0:
+                    datas = []
                     for item in items:
                         item = re.split('\[|:|,|\]', item)
                         ind = int(item[1])
-                        ts = datetime.fromtimestamp(float(item[4])).strftime("%Y-%m-%d, %H:%M:%S")
-                        s = {"datetime": ts, "open": float(item[5]), "high": float(item[6]), "low": float(item[7]), "close": float(item[8]), "volume": float(item[9])}
-                        self.datas.append(s)
+
+                        ts = datetime.fromtimestamp(float(item[4])).strftime("%s")
+                        s = {"datetime": float(item[4]), "open": float(item[5]), "high": float(item[6]), "low": float(item[7]), "close": float(item[8]), "volume": float(item[9])}
+
+                        datas.append(s)
+
+                    if len(datas):
+                        if not len(self.datas):
+                            self.datas = datas
+                        else:
+                            l = len(self.datas)
+                            dt = float(datetime.fromtimestamp(float(self.datas[l - 1]['datetime'])).strftime("%s"))
+
+                            for item in datas:
+                                dt2 = float(datetime.fromtimestamp(float(item['datetime'])).strftime("%s"))
+                                if dt == dt2:
+                                    self.datas[l - 1] = item
+                                elif dt < dt2:
+                                    self.datas.append(item)
+                                    l = l + 1
 
                     callback(self.datas)
                 else:
                     # ping packet
                     print("................retry")
-                    self.send_ping_packet(ws, result)
+                    self.send_ping_packet(ws, interval, result)
             except KeyboardInterrupt:
                 break
             except Exception as e:
                 print("=========except", datetime.now(), e)
-                self.send_ping_packet(ws, result)
+                if ('closed' in str(e) or 'lost' in str(e)):
+                    print("=========try")
+                    self.realtime_bar_chart(5, 1, callback)
 
     def get_symbol_id(self, pair, market):
         data = self.search(pair, market)
@@ -156,9 +179,8 @@ class TradingViewWs():
         session = self.generate_session("qs_")
 
         # Send messages
-        if self.username and self.password:
-            auth_token = self.get_auth_token()
-            self.send_message(ws, "set_auth_token", [auth_token])
+        if self.token:
+            self.send_message(ws, "set_auth_token", [self.token])
         else:
             self.send_message(ws, "set_auth_token", ["unauthorized_user_token"])
 
@@ -180,9 +202,8 @@ class TradingViewWs():
         chart_session = self.generate_session("cs_")
 
         # Then send a message through the tunnel
-        if self.username and self.password:
-            auth_token = self.get_auth_token()
-            self.send_message(ws, "set_auth_token", [auth_token])
+        if self.token:
+            self.send_message(ws, "set_auth_token", [self.token])
         else:
             self.send_message(ws, "set_auth_token", ["unauthorized_user_token"])
 
@@ -194,8 +215,8 @@ class TradingViewWs():
                      "exchange",
                      "fractional", "is_tradable", "lp", "lp_time", "minmov", "minmove2", "original_name", "pricescale",
                      "pro_name", "short_name", "type", "update_mode", "volume", "currency_code", "rchp", "rtc"])
-        self.send_message(ws, "quote_add_symbols", [session, symbol_id, {"flags": ['force_permission']}])
-        self.send_message(ws, "quote_fast_symbols", [session, symbol_id])
+        #self.send_message(ws, "quote_add_symbols", [session, symbol_id, {"flags": ['force_permission']}])
+        #self.send_message(ws, "quote_fast_symbols", [session, symbol_id])
 
         # st='~m~140~m~{"m":"resolve_symbol","p":}'
         # p1, p2 = filter_raw_message(st)
@@ -205,4 +226,4 @@ class TradingViewWs():
         # self.send_message(ws, "create_study", [chart_session,"st4","st1","s1","ESD@tv-scripting-101!",{"text":"BNEhyMp2zcJFvntl+CdKjA==_DkJH8pNTUOoUT2BnMT6NHSuLIuKni9D9SDMm1UOm/vLtzAhPVypsvWlzDDenSfeyoFHLhX7G61HDlNHwqt/czTEwncKBDNi1b3fj26V54CkMKtrI21tXW7OQD/OSYxxd6SzPtFwiCVAoPbF2Y1lBIg/YE9nGDkr6jeDdPwF0d2bC+yN8lhBm03WYMOyrr6wFST+P/38BoSeZvMXI1Xfw84rnntV9+MDVxV8L19OE/0K/NBRvYpxgWMGCqH79/sHMrCsF6uOpIIgF8bEVQFGBKDSxbNa0nc+npqK5vPdHwvQuy5XuMnGIqsjR4sIMml2lJGi/XqzfU/L9Wj9xfuNNB2ty5PhxgzWiJU1Z1JTzsDsth2PyP29q8a91MQrmpZ9GwHnJdLjbzUv3vbOm9R4/u9K2lwhcBrqrLsj/VfVWMSBP","pineId":"TV_SPLITS","pineVersion":"8.0"}])
 
         # Start job
-        self.socket_bar_chart(ws, callback)
+        self.socket_bar_chart(ws, interval, callback)

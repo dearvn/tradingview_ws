@@ -8,5 +8,7 @@ def callbackFunc(s):
 if __name__ == "__main__":
     pair = "ES"
     market = "futures"
-    trading = td.TradingViewWs(pair, market)
+    username = None
+    password = None
+    trading = td.TradingViewWs(pair, market, username, password)
     trading.realtime_quote(callbackFunc)

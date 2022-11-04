@@ -8,6 +8,9 @@ def callbackFunc(datas):
 if __name__ == "__main__":
     pair = "ES"
     market = "futures"
-    trading = td.TradingViewWs(pair, market)
-
-    trading.realtime_chart(callbackFunc)
+    username = None
+    password = None
+    trading = td.TradingViewWs(pair, market, username, password)
+    interval = 5
+    total_candle = 240
+    trading.realtime_bar_chart(interval, total_candle, callbackFunc)

@@ -150,6 +150,12 @@ class TradingViewWs():
         session = self.generate_session("qs_")
 
         # Send messages
+        if self.username and self.password:
+            auth_token = self.get_auth_token()
+            self.send_message(ws, "set_auth_token", [auth_token])
+        else:
+            self.send_message(ws, "set_auth_token", ["unauthorized_user_token"])
+
         self.send_message(ws, "quote_create_session", [session])
         self.send_message(ws, "quote_set_fields", [session, "lp"])
         self.send_message(ws, "quote_add_symbols", [session, symbol_id])
@@ -157,7 +163,7 @@ class TradingViewWs():
         # Start job
         self.socket_quote(ws, callback)
 
-    def realtime_chart(self, callback):
+    def realtime_bar_chart(self, interval, total_candle, callback):
         # serach btcusdt from crypto category
         symbol_id = self.get_symbol_id(self.ticker, self.market)
 
@@ -189,8 +195,8 @@ class TradingViewWs():
         # p1, p2 = filter_raw_message(st)
         self.send_message(ws, "resolve_symbol", [chart_session, "symbol_1",
                                            "={\"symbol\":\""+symbol_id+"\",\"adjustment\":\"splits\",\"session\":\"extended\"}"])
-        self.send_message(ws, "create_series", [chart_session, "s1", "s1", "symbol_1", "5", 240])
+        self.send_message(ws, "create_series", [chart_session, "s1", "s1", "symbol_1", interval, total_candle])
         # self.send_message(ws, "create_study", [chart_session,"st4","st1","s1","ESD@tv-scripting-101!",{"text":"BNEhyMp2zcJFvntl+CdKjA==_DkJH8pNTUOoUT2BnMT6NHSuLIuKni9D9SDMm1UOm/vLtzAhPVypsvWlzDDenSfeyoFHLhX7G61HDlNHwqt/czTEwncKBDNi1b3fj26V54CkMKtrI21tXW7OQD/OSYxxd6SzPtFwiCVAoPbF2Y1lBIg/YE9nGDkr6jeDdPwF0d2bC+yN8lhBm03WYMOyrr6wFST+P/38BoSeZvMXI1Xfw84rnntV9+MDVxV8L19OE/0K/NBRvYpxgWMGCqH79/sHMrCsF6uOpIIgF8bEVQFGBKDSxbNa0nc+npqK5vPdHwvQuy5XuMnGIqsjR4sIMml2lJGi/XqzfU/L9Wj9xfuNNB2ty5PhxgzWiJU1Z1JTzsDsth2PyP29q8a91MQrmpZ9GwHnJdLjbzUv3vbOm9R4/u9K2lwhcBrqrLsj/VfVWMSBP","pineId":"TV_SPLITS","pineVersion":"8.0"}])
 
         # Start job
-        self.socket_chart(ws, callback)
+        self.socket_bar_chart(ws, callback)
